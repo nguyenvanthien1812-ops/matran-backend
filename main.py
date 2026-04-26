@@ -40,6 +40,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+@app.get("/")
+def read_root():
+    return {"status": "ok", "message": "Ma Tran Backend is running"}
+
+@app.get("/api/health")
+def health_check():
+    return {"status": "ok"}
+
 # ══════════════════════════════════════════════════════════════════════════════
 #  CONSTANTS
 # ══════════════════════════════════════════════════════════════════════════════
