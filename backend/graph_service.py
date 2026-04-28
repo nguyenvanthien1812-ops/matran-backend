@@ -23,6 +23,11 @@ import base64
 import os
 import uuid
 import math
+import sys
+
+# Tăng giới hạn recursion — fix lỗi "maximum recursion depth exceeded"
+# trên một số server (Render, Heroku) khi matplotlib Agg backend save figure
+sys.setrecursionlimit(10000)
 
 # ══════════════════════════════════════════════════════════════════════
 #  CẤU HÌNH CHUNG CHO TẤT CẢ ĐỒ THỊ
@@ -277,10 +282,11 @@ def ve_histogram(data: dict) -> dict:
                           edgecolor='white', alpha=0.8, density=False)
     
     if data.get('veDuongCong', False) and len(du_lieu) > 5:
-        from scipy import stats
         mu, sigma = np.mean(du_lieu), np.std(du_lieu)
         x_curve = np.linspace(min(du_lieu), max(du_lieu), 100)
-        y_curve = stats.norm.pdf(x_curve, mu, sigma) * len(du_lieu) * (bins[1] - bins[0])
+        # Thay thế scipy bằng numpy thuần để tránh lỗi cài đặt trên server
+        pdf = (1.0 / (sigma * np.sqrt(2 * np.pi))) * np.exp(-0.5 * ((x_curve - mu) / sigma) ** 2)
+        y_curve = pdf * len(du_lieu) * (bins[1] - bins[0])
         ax.plot(x_curve, y_curve, 'r-', linewidth=2, label=f'μ={mu:.1f}, σ={sigma:.1f}')
         ax.legend()
     
@@ -457,9 +463,15 @@ def generate_graph(data: dict) -> dict:
         }
     
     try:
+        # Đóng tất cả figure cũ trước khi vẽ mới — tránh tích tụ gây recursion
+        plt.close('all')
         result = handler(data)
         return result
+    except RecursionError:
+        plt.close('all')
+        return {"success": False, "error": "Lỗi đệ quy khi vẽ đồ thị. Vui lòng thử lại."}
     except Exception as e:
+        plt.close('all')
         return {"success": False, "error": f"Lỗi khi vẽ đồ thị: {str(e)}"}
 
 
